@@ -1,4 +1,4 @@
-module GoBiliLiveDm
+module blivedm
 
 go 1.16
 

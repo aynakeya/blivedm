@@ -1,7 +1,14 @@
-package main
+# blivedm
 
+使用golang 获取bilibili直播弹幕，使用websocket协议
+ 
+go version of [xfgryujk/blivedm](https://github.com/xfgryujk/blivedm) 
+
+## quick start
+
+```
 import (
-	"blivedm"
+	"github.com/LXG-Shadow/blivedm"
 	"fmt"
 	"time"
 )
@@ -21,3 +28,4 @@ func main() {
 	})
 	time.Sleep(100 * time.Second)
 }
+```
