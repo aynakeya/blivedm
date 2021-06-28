@@ -24,6 +24,8 @@ type BLiveWsClient struct {
 	WsConn  *websocket.Conn
 	Running bool
 
+	Chnl chan int
+
 	Handlers map[string][]HandlerFunc
 }
 
@@ -81,6 +83,19 @@ func (self *BLiveWsClient) GetDanmuInfo() bool {
 
 func (self *BLiveWsClient) InitRoom() bool {
 	return self.GetRoomInfo() && self.GetDanmuInfo()
+}
+
+func (self *BLiveWsClient) Start() {
+	if !self.Running {
+		self.ConnectDanmuServer()
+	}
+	self.Chnl = make(chan int)
+	_ = <-self.Chnl
+}
+
+func (self *BLiveWsClient) Stop() {
+	self.Running = false
+	self.Chnl <- 1
 }
 
 func (self *BLiveWsClient) ConnectDanmuServer() bool {
