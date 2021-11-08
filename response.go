@@ -48,3 +48,9 @@ type DanmuInfoResponse struct {
 	BaseResponse
 	Data DanmuInfoData `json:"data"`
 }
+
+type DanmakuSendResponse struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Msg     string `json:"msg"`
+}

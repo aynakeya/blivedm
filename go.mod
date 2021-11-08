@@ -1,4 +1,4 @@
-module blivedm
+module github.com/aynakeya/blivedm
 
 go 1.16
 

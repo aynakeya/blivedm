@@ -1,13 +1,13 @@
 package main
 
 import (
-	"blivedm"
 	"fmt"
+	"github.com/aynakeya/blivedm"
 	"time"
 )
 
 func main() {
-	cl := blivedm.BLiveWsClient{ShortId: 22695382, Uid: 0, HearbeatInterval: 25 * time.Second}
+	cl := blivedm.BLiveWsClient{ShortId: 544957, Account: blivedm.DanmuAccount{UID: 0}, HearbeatInterval: 25 * time.Second}
 	fmt.Println(cl.GetRoomInfo(), cl.GetDanmuInfo())
 	cl.ConnectDanmuServer()
 	cl.RegHandler(blivedm.CmdDanmaku, func(context *blivedm.Context) {
@@ -20,7 +20,7 @@ func main() {
 		}
 	})
 	go func() {
-		time.Sleep(time.Second * 10)
+		time.Sleep(time.Second * 100000)
 		cl.Stop()
 	}()
 	cl.Start()

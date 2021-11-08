@@ -27,7 +27,7 @@ func ResolveWSPacket(data []byte) (WsHeader, []byte, bool) {
 	return header, data[header.HeaderLength:header.PacketLength], true
 }
 
-func MakeWSPacket(operation int32, data []byte) []byte {
+func MakeWSPacket(operation int, data []byte) []byte {
 	headerBytes := new(bytes.Buffer)
 	header := []interface{}{
 		uint32(len(data) + 16),

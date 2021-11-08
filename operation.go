@@ -2,50 +2,50 @@ package blivedm
 
 const (
 	// OpHandshake handshake
-	OpHandshake = int32(0)
+	OpHandshake = 0
 	// OpHandshakeReply handshake reply
-	OpHandshakeReply = int32(1)
+	OpHandshakeReply = 1
 
 	// OpHeartbeat heartbeat
-	OpHeartbeat = int32(2)
+	OpHeartbeat = 2
 	// OpHeartbeatReply heartbeat reply
-	OpHeartbeatReply = int32(3)
+	OpHeartbeatReply = 3
 
 	// OpSendMsg send message.
-	OpSendMsg = int32(4)
+	OpSendMsg = 4
 	// OpSendMsgReply  send message reply
-	OpSendMsgReply = int32(5)
+	OpSendMsgReply = 5
 
 	// OpDisconnectReply disconnect reply
-	OpDisconnectReply = int32(6)
+	OpDisconnectReply = 6
 
 	// OpAuth auth connnect
-	OpAuth = int32(7)
+	OpAuth = 7
 	// OpAuthReply auth connect reply
-	OpAuthReply = int32(8)
+	OpAuthReply = 8
 
 	// OpRaw  raw message
-	OpRaw = int32(9)
+	OpRaw = 9
 
 	// OpProtoReady proto ready
-	OpProtoReady = int32(10)
+	OpProtoReady = 10
 	// OpProtoFinish proto finish
-	OpProtoFinish = int32(11)
+	OpProtoFinish = 11
 
 	// OpChangeRoom change room
-	OpChangeRoom = int32(12)
+	OpChangeRoom = 12
 	// OpChangeRoomReply change room reply
-	OpChangeRoomReply = int32(13)
+	OpChangeRoomReply = 13
 
 	// OpRegister register operation
-	OpRegister = int32(14)
+	OpRegister = 14
 	// OpRegisterReply register operation
-	OpRegisterReply = int32(15)
+	OpRegisterReply = 15
 
 	// OpUnregister unregister operation
-	OpUnregister = int32(16)
+	OpUnregister = 16
 	// OpUnregisterReply unregister operation reply
-	OpUnregisterReply = int32(17)
+	OpUnregisterReply = 17
 
 	// MinBusinessOp min business operation
 	MinBusinessOp = 1000

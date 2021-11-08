@@ -3,8 +3,6 @@ package blivedm
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/go-resty/resty/v2"
-	"github.com/spf13/cast"
 	"github.com/tidwall/gjson"
 	"net/url"
 	"time"
@@ -15,9 +13,10 @@ import (
 type BLiveWsClient struct {
 	RoomId    int
 	ShortId   int
-	Uid       int
 	RoomInfo  RoomInfoData
 	DanmuInfo DanmuInfoData
+
+	Account DanmuAccount
 
 	HearbeatInterval time.Duration
 
@@ -29,44 +28,37 @@ type BLiveWsClient struct {
 	Handlers map[string][]HandlerFunc
 }
 
-func New_BLiveWsClient(uid int) BLiveWsClient {
-	return BLiveWsClient{ShortId: uid, HearbeatInterval: 25 * time.Second}
+func New_BLiveWsClient(shorId int) BLiveWsClient {
+	return BLiveWsClient{ShortId: shorId, Account: DanmuAccount{UID: 0}, HearbeatInterval: 25 * time.Second}
 }
 
-func (self *BLiveWsClient) GetRoomInfo() bool {
-	client := resty.New()
-	resp, err := client.R().
-		SetQueryParam("room_id", cast.ToString(self.ShortId)).
-		Get(ROOM_INFO_API)
+func (c *BLiveWsClient) GetRoomInfo() bool {
+	resp, err := ApiGetRoomInfo(c.ShortId)
 	if err != nil {
-		self.RoomId = self.ShortId
+		c.RoomId = c.ShortId
 		return false
 	}
 	var sResp RoomInfoResponse
 	if err := json.Unmarshal(resp.Body(), &sResp); err != nil {
-		self.RoomId = self.ShortId
+		c.RoomId = c.ShortId
 		return false
 	}
 	// 虽然但是，如果用的是shortid,返回的code不是0，但是data是正确的，所以我也不明白了
 	//if sResp.Code != 0 {
-	//	self.RoomId = self.ShortId
+	//	c.RoomId = c.ShortId
 	//	return false
 	//}
 	if sResp.Data.RoomID == 0 {
-		self.RoomId = self.ShortId
+		c.RoomId = c.ShortId
 		return false
 	}
-	self.RoomInfo = sResp.Data
-	self.RoomId = sResp.Data.RoomID
+	c.RoomInfo = sResp.Data
+	c.RoomId = sResp.Data.RoomID
 	return true
 }
 
-func (self *BLiveWsClient) GetDanmuInfo() bool {
-	client := resty.New()
-	resp, err := client.R().
-		SetQueryParam("id", cast.ToString(self.RoomId)).
-		SetQueryParam("type", "0").
-		Get(DANMAKU_INFO_API)
+func (c *BLiveWsClient) GetDanmuInfo() bool {
+	resp, err := ApiGetDanmuInfo(c.RoomId, 0)
 	if err != nil {
 		return false
 	}
@@ -77,65 +69,65 @@ func (self *BLiveWsClient) GetDanmuInfo() bool {
 	if sResp.Code != 0 {
 		return false
 	}
-	self.DanmuInfo = sResp.Data
+	c.DanmuInfo = sResp.Data
 	return true
 }
 
-func (self *BLiveWsClient) InitRoom() bool {
-	return self.GetRoomInfo() && self.GetDanmuInfo()
+func (c *BLiveWsClient) InitRoom() bool {
+	return c.GetRoomInfo() && c.GetDanmuInfo()
 }
 
-func (self *BLiveWsClient) Start() {
-	if !self.Running {
-		self.ConnectDanmuServer()
+func (c *BLiveWsClient) Start() {
+	if !c.Running {
+		c.ConnectDanmuServer()
 	}
-	self.Chnl = make(chan int)
-	_ = <-self.Chnl
+	c.Chnl = make(chan int)
+	defer func() { _ = <-c.Chnl }()
 }
 
-func (self *BLiveWsClient) Stop() {
-	self.Running = false
-	self.Chnl <- 1
+func (c *BLiveWsClient) Stop() {
+	c.Running = false
+	c.Chnl <- 1
 }
 
-func (self *BLiveWsClient) ConnectDanmuServer() bool {
-	danmuServer := self.DanmuInfo.HostList[0]
+func (c *BLiveWsClient) ConnectDanmuServer() bool {
+	danmuServer := c.DanmuInfo.HostList[0]
 	danmuHost := fmt.Sprintf("%s:%d", danmuServer.Host, danmuServer.WssPort)
 	uri := url.URL{Scheme: "wss", Host: danmuHost, Path: "/sub"}
 	conn, _, err := websocket.DefaultDialer.Dial(uri.String(), nil)
 	if err != nil {
 		return false
 	}
-	self.WsConn = conn
-	self.sendAuth()
+	c.WsConn = conn
+	c.sendAuth()
 
-	self.Running = true
+	c.Running = true
 
 	go func() {
-		for self.Running {
-			self.ReadMessage()
+		for c.Running {
+			c.ReadMessage()
 		}
 	}()
 
 	go func() {
-		for self.Running {
-			self.sendHeartBeat()
-			time.Sleep(self.HearbeatInterval)
+		for c.Running {
+			c.sendHeartBeat()
+			time.Sleep(c.HearbeatInterval)
 		}
 	}()
 	return true
 }
 
-func (self *BLiveWsClient) Disconnect() {
-	self.Running = false
-	err := self.WsConn.Close()
+func (c *BLiveWsClient) Disconnect() {
+	c.Running = false
+	err := c.WsConn.Close()
 	if err != nil {
 		return
 	}
 }
 
-func (self *BLiveWsClient) ReadMessage() {
-	messageType, message, err := self.WsConn.ReadMessage()
+func (c *BLiveWsClient) ReadMessage() {
+	messageType, message, err := c.WsConn.ReadMessage()
 	if err != nil {
 		return
 	}
@@ -154,28 +146,28 @@ func (self *BLiveWsClient) ReadMessage() {
 				if !k {
 					break
 				}
-				self.handleMessage(h, d)
+				c.handleMessage(h, d)
 				offset += int(h.PacketLength)
 			}
 		}
 	} else {
-		self.handleMessage(header, data)
+		c.handleMessage(header, data)
 	}
 }
 
-func (self *BLiveWsClient) handleMessage(header WsHeader, data []byte) {
-	switch int32(header.Operation) {
+func (c *BLiveWsClient) handleMessage(header WsHeader, data []byte) {
+	switch int(header.Operation) {
 	case OpSendMsg, OpSendMsgReply:
-		self.handleCommand(data)
+		c.handleCommand(data)
 	default:
 		return
 	}
 }
 
-func (self *BLiveWsClient) handleCommand(data []byte) {
+func (c *BLiveWsClient) handleCommand(data []byte) {
 	jData := gjson.Get(string(data), "@this")
 	if cmd := jData.Get("cmd"); cmd.Exists() {
-		self.CallHandler(cmd.String(), &Context{
+		c.CallHandler(cmd.String(), &Context{
 			Cmd:      cmd.String(),
 			RawData:  string(data),
 			JsonData: jData,
@@ -185,44 +177,58 @@ func (self *BLiveWsClient) handleCommand(data []byte) {
 	}
 }
 
-func (self *BLiveWsClient) RegHandler(cmd string, handlerFunc HandlerFunc) {
-	if self.Handlers == nil {
-		self.Handlers = map[string][]HandlerFunc{}
+func (c *BLiveWsClient) RegHandler(cmd string, handlerFunc HandlerFunc) {
+	if c.Handlers == nil {
+		c.Handlers = map[string][]HandlerFunc{}
 	}
-	//if _, ok := self.Handlers[cmd]; !ok {
-	//	self.Handlers[cmd] = make([]HandlerFunc, 0)
+	//if _, ok := c.Handlers[cmd]; !ok {
+	//	c.Handlers[cmd] = make([]HandlerFunc, 0)
 	//}
-	self.Handlers[cmd] = append(self.Handlers[cmd], handlerFunc)
+	c.Handlers[cmd] = append(c.Handlers[cmd], handlerFunc)
 }
 
-func (self *BLiveWsClient) CallHandler(cmd string, context *Context) {
-	if handlers, ok := self.Handlers[cmd]; ok {
+func (c *BLiveWsClient) CallHandler(cmd string, context *Context) {
+	if handlers, ok := c.Handlers[cmd]; ok {
 		for _, handler := range handlers {
 			handler(context)
 		}
 	}
 }
 
-func (self *BLiveWsClient) sendHeartBeat() {
-	err := self.WsConn.WriteMessage(websocket.BinaryMessage, MakeWSPacket(OpHeartbeat, []byte{}))
+func (c *BLiveWsClient) sendHeartBeat() {
+	err := c.WsConn.WriteMessage(websocket.BinaryMessage, MakeWSPacket(OpHeartbeat, []byte{}))
 	if err != nil {
 		return
 	}
 }
 
-func (self *BLiveWsClient) sendAuth() {
+func (c *BLiveWsClient) sendAuth() {
 	data := map[string]interface{}{
-		"uid":    self.Uid,
-		"roomid": self.RoomId,
+		"uid":    c.Account.UID,
+		"roomid": c.RoomId,
 		// protover  = 3 unknown encryption
 		"protover": 2,
 		"platform": "web",
 		"type":     2,
-		"key":      self.DanmuInfo.Token,
+		"key":      c.DanmuInfo.Token,
 	}
 	dataBytes, _ := json.Marshal(data)
-	err := self.WsConn.WriteMessage(websocket.BinaryMessage, MakeWSPacket(OpAuth, dataBytes))
+	err := c.WsConn.WriteMessage(websocket.BinaryMessage, MakeWSPacket(OpAuth, dataBytes))
 	if err != nil {
 		return
 	}
+}
+
+func (c *BLiveWsClient) SendMessage(msg DanmakuSendForm) (DanmakuSendResponse, error) {
+	msg.CSRF = c.Account.BilibiliJCT
+	msg.RoomId = c.RoomId
+	resp, err := ApiSendDanmu(c.Account, msg)
+	if err != nil {
+		return DanmakuSendResponse{Code: -1}, err
+	}
+	var sendResp DanmakuSendResponse
+	if err := json.Unmarshal(resp.Body(), &sendResp); err != nil {
+		return DanmakuSendResponse{Code: -1}, err
+	}
+	return sendResp, err
 }
