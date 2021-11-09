@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	cl := blivedm.BLiveWsClient{ShortId: 544957, Account: blivedm.DanmuAccount{UID: 0}, HearbeatInterval: 25 * time.Second}
+	cl := blivedm.BLiveWsClient{ShortId: 23028000, Account: blivedm.DanmuAccount{UID: 0}, HearbeatInterval: 25 * time.Second}
 	fmt.Println(cl.GetRoomInfo(), cl.GetDanmuInfo())
 	cl.ConnectDanmuServer()
 	cl.RegHandler(blivedm.CmdDanmaku, func(context *blivedm.Context) {

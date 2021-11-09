@@ -33,7 +33,7 @@ func New_BLiveWsClient(shorId int) BLiveWsClient {
 }
 
 func (c *BLiveWsClient) GetRoomInfo() bool {
-	resp, err := ApiGetRoomInfo(c.ShortId)
+	resp, err := ApiGetRoomInfo(c.Account, c.ShortId)
 	if err != nil {
 		c.RoomId = c.ShortId
 		return false
@@ -43,22 +43,21 @@ func (c *BLiveWsClient) GetRoomInfo() bool {
 		c.RoomId = c.ShortId
 		return false
 	}
-	// 虽然但是，如果用的是shortid,返回的code不是0，但是data是正确的，所以我也不明白了
-	//if sResp.Code != 0 {
-	//	c.RoomId = c.ShortId
-	//	return false
-	//}
-	if sResp.Data.RoomID == 0 {
+	if sResp.Code != 0 {
 		c.RoomId = c.ShortId
 		return false
 	}
+	if sResp.Data.RoomId == 0 {
+		c.RoomId = c.ShortId
+		return true
+	}
 	c.RoomInfo = sResp.Data
-	c.RoomId = sResp.Data.RoomID
+	c.RoomId = sResp.Data.RoomId
 	return true
 }
 
 func (c *BLiveWsClient) GetDanmuInfo() bool {
-	resp, err := ApiGetDanmuInfo(c.RoomId, 0)
+	resp, err := ApiGetDanmuInfo(c.Account, c.RoomId, 0)
 	if err != nil {
 		return false
 	}
@@ -79,6 +78,8 @@ func (c *BLiveWsClient) InitRoom() bool {
 
 func (c *BLiveWsClient) Start() {
 	if !c.Running {
+		c.GetRoomInfo()
+		c.GetDanmuInfo()
 		c.ConnectDanmuServer()
 	}
 	c.Chnl = make(chan int)
@@ -91,6 +92,9 @@ func (c *BLiveWsClient) Stop() {
 }
 
 func (c *BLiveWsClient) ConnectDanmuServer() bool {
+	if c.DanmuInfo.HostList == nil {
+		return false
+	}
 	danmuServer := c.DanmuInfo.HostList[0]
 	danmuHost := fmt.Sprintf("%s:%d", danmuServer.Host, danmuServer.WssPort)
 	uri := url.URL{Scheme: "wss", Host: danmuHost, Path: "/sub"}
@@ -99,13 +103,11 @@ func (c *BLiveWsClient) ConnectDanmuServer() bool {
 		return false
 	}
 	c.WsConn = conn
-	c.sendAuth()
-
-	c.Running = true
+	c.Running = c.sendAuth()
 
 	go func() {
 		for c.Running {
-			c.ReadMessage()
+			c.Running = c.ReadMessage()
 		}
 	}()
 
@@ -115,7 +117,7 @@ func (c *BLiveWsClient) ConnectDanmuServer() bool {
 			time.Sleep(c.HearbeatInterval)
 		}
 	}()
-	return true
+	return c.Running
 }
 
 func (c *BLiveWsClient) Disconnect() {
@@ -126,17 +128,17 @@ func (c *BLiveWsClient) Disconnect() {
 	}
 }
 
-func (c *BLiveWsClient) ReadMessage() {
+func (c *BLiveWsClient) ReadMessage() bool {
 	messageType, message, err := c.WsConn.ReadMessage()
 	if err != nil {
-		return
+		return false
 	}
 	if messageType != websocket.BinaryMessage {
-		return
+		return false
 	}
 	header, data, ok := ResolveWSPacket(message)
 	if !ok {
-		return
+		return false
 	}
 	if header.ProtocolVersion == 2 {
 		if datas, err := ZlibDeCompress(data); err == nil {
@@ -153,6 +155,7 @@ func (c *BLiveWsClient) ReadMessage() {
 	} else {
 		c.handleMessage(header, data)
 	}
+	return true
 }
 
 func (c *BLiveWsClient) handleMessage(header WsHeader, data []byte) {
@@ -202,7 +205,7 @@ func (c *BLiveWsClient) sendHeartBeat() {
 	}
 }
 
-func (c *BLiveWsClient) sendAuth() {
+func (c *BLiveWsClient) sendAuth() bool {
 	data := map[string]interface{}{
 		"uid":    c.Account.UID,
 		"roomid": c.RoomId,
@@ -215,8 +218,9 @@ func (c *BLiveWsClient) sendAuth() {
 	dataBytes, _ := json.Marshal(data)
 	err := c.WsConn.WriteMessage(websocket.BinaryMessage, MakeWSPacket(OpAuth, dataBytes))
 	if err != nil {
-		return
+		return false
 	}
+	return true
 }
 
 func (c *BLiveWsClient) SendMessage(msg DanmakuSendForm) (DanmakuSendResponse, error) {
@@ -224,11 +228,11 @@ func (c *BLiveWsClient) SendMessage(msg DanmakuSendForm) (DanmakuSendResponse, e
 	msg.RoomId = c.RoomId
 	resp, err := ApiSendDanmu(c.Account, msg)
 	if err != nil {
-		return DanmakuSendResponse{Code: -1}, err
+		return DanmakuSendResponse{BaseV1Response{Code: -1}}, err
 	}
 	var sendResp DanmakuSendResponse
 	if err := json.Unmarshal(resp.Body(), &sendResp); err != nil {
-		return DanmakuSendResponse{Code: -1}, err
+		return DanmakuSendResponse{BaseV1Response{Code: -1}}, err
 	}
 	return sendResp, err
 }
