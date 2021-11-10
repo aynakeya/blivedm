@@ -68,11 +68,28 @@ func ApiGetDanmuInfo(sender DanmuAccount, roomId int, infoType int) (*resty.Resp
 		Get(DANMAKU_INFO_API)
 }
 
-func ApiGetRoomDanmuConfig(roomId int) (*resty.Response, error) {
-	client := resty.New()
-	return client.R().
+func ApiGetRoomDanmuConfig(sender DanmuAccount, roomId int) (*DanmuConfigResponse, error) {
+	resp, err := resty.New().R().
+		SetCookies([]*http.Cookie{
+			{
+				Name:  "SESSDATA",
+				Value: sender.SessionData,
+			},
+			{
+				Name:  "bili_jct",
+				Value: sender.BilibiliJCT,
+			},
+		}).
 		SetQueryParam("room_id", cast.ToString(roomId)).
-		Get(DANMAKU_INFO_API)
+		Get(ROOM_DANMU_CONFIG_API)
+	if err != nil {
+		return nil, err
+	}
+	var dmcfgResp DanmuConfigResponse
+	if err := json.Unmarshal(resp.Body(), &dmcfgResp); err != nil {
+		return nil, err
+	}
+	return &dmcfgResp, nil
 }
 
 func ApiSendDanmu(sender DanmuAccount, msg DanmakuSendForm) (*resty.Response, error) {
@@ -92,7 +109,7 @@ func ApiSendDanmu(sender DanmuAccount, msg DanmakuSendForm) (*resty.Response, er
 			"bubble":     cast.ToString(msg.Bubble),
 			"msg":        msg.Message,
 			"color":      msg.Color,
-			"mode":       cast.ToString(msg.mode),
+			"mode":       cast.ToString(msg.Mode),
 			"fontsize":   cast.ToString(msg.Fontsize),
 			"rnd":        cast.ToString(msg.Rnd),
 			"roomid":     cast.ToString(msg.RoomId),

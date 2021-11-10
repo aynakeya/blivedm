@@ -232,3 +232,30 @@ type UpInfoResponse struct {
 	BaseResponse
 	Data UpInfoData `json:"data"`
 }
+
+type DanmuConfigData struct {
+	Group []struct {
+		Name  string `json:"name"`
+		Sort  int    `json:"sort"`
+		Color []struct {
+			Name     string `json:"name"`
+			Color    string `json:"color"`
+			ColorHex string `json:"color_hex"`
+			Status   int    `json:"status"`
+			Weight   int    `json:"weight"`
+			ColorId  int    `json:"color_id"`
+			Origin   int    `json:"origin"`
+		} `json:"color"`
+	} `json:"group"`
+	Mode []struct {
+		Name   string `json:"name"`
+		Mode   int    `json:"mode"`
+		Type   string `json:"type"`
+		Status int    `json:"status"`
+	} `json:"mode"`
+}
+
+type DanmuConfigResponse struct {
+	BaseV1Response
+	Data DanmuConfigData `json:"data"`
+}
