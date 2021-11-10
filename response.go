@@ -259,3 +259,14 @@ type DanmuConfigResponse struct {
 	BaseV1Response
 	Data DanmuConfigData `json:"data"`
 }
+
+type SetDanmuConfigData struct {
+	Status int    `json:"status"`
+	Msg    string `json:"msg"`
+	Roomid int    `json:"roomid"`
+}
+
+type SetDanmuConfigResponse struct {
+	BaseResponse
+	Data SetDanmuConfigData `json:"data"`
+}

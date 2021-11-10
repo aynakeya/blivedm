@@ -12,6 +12,7 @@ const (
 	ROOM_INFO_API_V2      = "https://api.live.bilibili.com/xlive/web-room/v2/index/getRoomPlayInfo"
 	DANMAKU_INFO_API      = "https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo"
 	SEND_MSG_API          = "https://api.live.bilibili.com/msg/send"
+	SET_MSG_CONFIG_API    = "https://api.live.bilibili.com/xlive/web-room/v1/dM/AjaxSetConfig"
 	ROOM_DANMU_CONFIG_API = "https://api.live.bilibili.com/xlive/web-room/v1/dM/GetDMConfigByGroup"
 	UP_INFO_API           = "https://api.bilibili.com/x/space/acc/info"
 )
@@ -116,6 +117,35 @@ func ApiSendDanmu(sender DanmuAccount, msg DanmakuSendForm) (*resty.Response, er
 			"csrf":       cast.ToString(msg.CSRF),
 			"csrf_token": cast.ToString(msg.CSRF),
 		}).Post(SEND_MSG_API)
+}
+
+func ApiSetDanmuConfig(sender DanmuAccount, roomId int, config string, value string) (*SetDanmuConfigResponse, error) {
+	resp, err := resty.New().R().
+		SetCookies([]*http.Cookie{
+			{
+				Name:  "SESSDATA",
+				Value: sender.SessionData,
+			},
+			{
+				Name:  "bili_jct",
+				Value: sender.BilibiliJCT,
+			},
+		}).
+		SetFormData(map[string]string{
+			"room_id":    cast.ToString(roomId),
+			config:       value,
+			"csrf":       cast.ToString(sender.BilibiliJCT),
+			"csrf_token": cast.ToString(sender.BilibiliJCT),
+			"visit_id":   "",
+		}).Post(SET_MSG_CONFIG_API)
+	if err != nil {
+		return nil, err
+	}
+	var tmpResp SetDanmuConfigResponse
+	if err := json.Unmarshal(resp.Body(), &tmpResp); err != nil {
+		return nil, err
+	}
+	return &tmpResp, nil
 }
 
 func ApiGetUpInfo(mid int) (*UpInfoResponse, error) {
