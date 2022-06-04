@@ -26,6 +26,8 @@ type BLiveWsClient struct {
 	Chnl chan int
 
 	Handlers map[string][]HandlerFunc
+
+	OnDisconnect DisconnectCallback
 }
 
 func New_BLiveWsClient(shorId int) BLiveWsClient {
@@ -107,7 +109,11 @@ func (c *BLiveWsClient) ConnectDanmuServer() bool {
 
 	go func() {
 		for c.Running {
-			c.Running = c.ReadMessage()
+			r := c.ReadMessage()
+			if !r && c.OnDisconnect != nil {
+				c.OnDisconnect(c)
+			}
+			c.Running = r
 		}
 	}()
 
@@ -198,11 +204,8 @@ func (c *BLiveWsClient) CallHandler(cmd string, context *Context) {
 	}
 }
 
-func (c *BLiveWsClient) sendHeartBeat() {
-	err := c.WsConn.WriteMessage(websocket.BinaryMessage, MakeWSPacket(OpHeartbeat, []byte{}))
-	if err != nil {
-		return
-	}
+func (c *BLiveWsClient) sendHeartBeat() error {
+	return c.WsConn.WriteMessage(websocket.BinaryMessage, MakeWSPacket(OpHeartbeat, []byte{}))
 }
 
 func (c *BLiveWsClient) sendAuth() bool {

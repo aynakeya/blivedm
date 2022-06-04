@@ -8,6 +8,9 @@ import (
 
 func main() {
 	cl := blivedm.BLiveWsClient{ShortId: 7777, Account: blivedm.DanmuAccount{UID: 0}, HearbeatInterval: 25 * time.Second}
+	cl.OnDisconnect = func(client *blivedm.BLiveWsClient) {
+		fmt.Println("Disconnect from server when reading")
+	}
 	fmt.Println(cl.GetRoomInfo(), cl.GetDanmuInfo())
 	cl.ConnectDanmuServer()
 	cl.RegHandler(blivedm.CmdDanmaku, func(context *blivedm.Context) {
