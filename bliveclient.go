@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/tidwall/gjson"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -176,8 +177,10 @@ func (c *BLiveWsClient) handleMessage(header WsHeader, data []byte) {
 func (c *BLiveWsClient) handleCommand(data []byte) {
 	jData := gjson.Get(string(data), "@this")
 	if cmd := jData.Get("cmd"); cmd.Exists() {
-		c.CallHandler(cmd.String(), &Context{
-			Cmd:      cmd.String(),
+		// fix DANMU_MSG:4:0:2:2:2:0
+		cmds := strings.Split(cmd.String(), ":")
+		c.CallHandler(cmds[0], &Context{
+			Cmd:      cmds[0],
 			RawData:  string(data),
 			JsonData: jData,
 		})
