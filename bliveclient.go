@@ -129,6 +129,9 @@ func (c *BLiveWsClient) ConnectDanmuServer() bool {
 
 func (c *BLiveWsClient) Disconnect() {
 	c.Running = false
+	if c.WsConn == nil {
+		return
+	}
 	err := c.WsConn.Close()
 	if err != nil {
 		return
